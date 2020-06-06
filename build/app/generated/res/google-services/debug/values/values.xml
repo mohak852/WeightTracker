@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="default_web_client_id" translatable="false">482213227018-b2ar76d7dj0hpmf4dopql1hcrc7p7fes.apps.googleusercontent.com</string>
+    <string name="firebase_database_url" translatable="false">https://weighttracker-f1194.firebaseio.com</string>
+    <string name="gcm_defaultSenderId" translatable="false">482213227018</string>
+    <string name="google_api_key" translatable="false">AIzaSyAqST-doABCV4d1xlRX5b2jyyrMECFLDaY</string>
+    <string name="google_app_id" translatable="false">1:482213227018:android:ac15adee49ae7d93e78df3</string>
+    <string name="google_crash_reporting_api_key" translatable="false">AIzaSyAqST-doABCV4d1xlRX5b2jyyrMECFLDaY</string>
+    <string name="google_storage_bucket" translatable="false">weighttracker-f1194.appspot.com</string>
+    <string name="project_id" translatable="false">weighttracker-f1194</string>
+</resources>
