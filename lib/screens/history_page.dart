@@ -1,106 +1,96 @@
-import 'package:flutter/material.dart';
-import '../model/db_helper.dart';
+import 'dart:async';
 
-class HistoryPage extends StatefulWidget {
-  @override
-  _HistoryPageState createState() => _HistoryPageState();
+import 'package:flutter/material.dart';
+import 'package:flutter_redux/flutter_redux.dart';
+import 'package:meta/meta.dart';
+import 'package:weight_tracker/logic/actions.dart';
+import 'package:weight_tracker/logic/redux_state.dart';
+import 'package:weight_tracker/model/weight_entry.dart';
+import 'package:weight_tracker/screens/weight_entry_dialog.dart';
+import 'package:weight_tracker/widgets/weight_list_item.dart';
+
+@immutable
+class HistoryPageViewModel {
+  final String unit;
+  final List<WeightEntry> entries;
+  final bool hasEntryBeenRemoved;
+  final Function() acceptEntryRemoved;
+  final Function() undoEntryRemoval;
+  final Function(WeightEntry) openEditDialog;
+
+  HistoryPageViewModel({
+    this.undoEntryRemoval,
+    this.hasEntryBeenRemoved,
+    this.acceptEntryRemoved,
+    this.entries,
+    this.openEditDialog,
+    this.unit,
+  });
 }
 
-class _HistoryPageState extends State<HistoryPage> {
-  final dbHelper = DatabaseHelper.instance;
-  List weightList = [];
-  String currWeightUnit = " kg";
-  @override
-  void initState() {
-    initPrefs();
-    super.initState();
-  }
-
-  void initPrefs() async {
-    weightList = await dbHelper.queryAllRows();
-    print(weightList);
-    print(weightList.length);
-    setState(() {
-      
-    });
-  }
+class HistoryPage extends StatelessWidget {
+  HistoryPage({Key key, this.title}) : super(key: key);
+  final String title;
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        backgroundColor: Colors.black,
-        title: Text(
-          "History",
-          style: TextStyle(
-            fontFamily: 'DMMono',
-            fontWeight: FontWeight.normal,
-            color: Colors.teal,
-          ),
-        ),
-      ),
-      body: Container(
-        padding: EdgeInsets.all(10.0),
-        child: ListView.builder(
-          scrollDirection: Axis.vertical,
-          itemCount: weightList.length,
-          itemBuilder: (BuildContext context, indice) {
-            DateTime parsedTime = DateTime.parse(weightList[indice]["time"]);
-//            DateFormat("dd-MM-yyyy").format(now),
-             String goal = weightList[indice]["goal"].toString();
-             String weight = weightList[indice]["weight"].toString();
-            double totalProgress =  weightList.isEmpty
-                ? 0.0
-                : (weightList.first.weight - weightList.last.weight);
-            double currentWeight =  weightList.isEmpty ? 0.0 : weightList.first.weight;
-            return Column(
-              children: <Widget>[
-                Container(
-                  padding: EdgeInsets.all(20.0),
-                  height: 100.0,
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.circular(25.0),
-                    boxShadow: [BoxShadow(
-                      color: Colors.grey,
-                      offset: Offset(2, 3),
-                      spreadRadius: 2.0,
-                    )],
-                  ),
-                  child: Column(
-                    children: <Widget>[
-                      Text("Goal: " + goal,style: TextStyle(
-                        fontFamily: 'DMMono',
-                        fontWeight: FontWeight.normal,
-                        color: Colors.teal,
-                      ),),
-                      SizedBox(height: 5.0,),
-                      Text("Weight: " + weight,style: TextStyle(
-                        fontFamily: 'DMMono',
-                        fontWeight: FontWeight.normal,
-                        color: Colors.teal,
-                      ),),
-                      Text("Date: " + parsedTime.toString(),style: TextStyle(
-                        fontFamily: 'DMMono',
-                        fontWeight: FontWeight.normal,
-                        color: Colors.teal,
-                      ),),
-                      Text("WeightDifference: " + totalProgress.toString(),style: TextStyle(
-                        fontFamily: 'DMMono',
-                        fontWeight: FontWeight.normal,
-                        color: Colors.teal,
-                      ),),
-                    ],
-                  ),
-                ),
-                SizedBox(height: 15.0,),
-              ],
-            );
+    return new StoreConnector<ReduxState, HistoryPageViewModel>(
+      converter: (store) {
+        return new HistoryPageViewModel(
+          entries: store.state.entries,
+          openEditDialog: (entry) {
+            store.dispatch(new OpenEditEntryDialog(entry));
+            Navigator.of(context).push(new MaterialPageRoute(
+              builder: (BuildContext context) {
+                return new WeightEntryDialog();
+              },
+              fullscreenDialog: true,
+            ));
           },
-        ),
-      ),
+          hasEntryBeenRemoved: store.state.removedEntryState
+              .hasEntryBeenRemoved,
+          acceptEntryRemoved: () =>
+              store.dispatch(new AcceptEntryRemovalAction()),
+          undoEntryRemoval: () => store.dispatch(new UndoRemovalAction()),
+          unit: store.state.unit,
+        );
+      },
+      builder: (context, viewModel) {
+        if (viewModel.hasEntryBeenRemoved) {
+          new Future<Null>.delayed(Duration.zero, () {
+            Scaffold.of(context).showSnackBar(new SnackBar(
+              content: new Text("Entry deleted."),
+              action: new SnackBarAction(
+                label: "UNDO",
+                onPressed: () => viewModel.undoEntryRemoval(),
+              ),
+            ));
+            viewModel.acceptEntryRemoved();
+          });
+        }
+        if (viewModel.entries.isEmpty) {
+          return new Center(
+            child: new Text("Add your weight to see history"),
+          );
+        } else {
+          return new ListView.builder(
+            shrinkWrap: true,
+            itemCount: viewModel.entries.length,
+            itemBuilder: (buildContext, index) {
+              //calculating difference
+              double difference = index == viewModel.entries.length - 1
+                  ? 0.0
+                  : viewModel.entries[index].weight -
+                  viewModel.entries[index + 1].weight;
+              return new InkWell(
+                  onTap: () =>
+                      viewModel.openEditDialog(viewModel.entries[index]),
+                  child: new WeightListItem(
+                      viewModel.entries[index], difference, viewModel.unit));
+            },
+          );
+        }
+      },
     );
   }
 }
